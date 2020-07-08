@@ -49,6 +49,12 @@ AbstractServer::AbstractServer(QObject *parent)
 }
 
 
+void AbstractServer::slotReadyRead()
+{
+
+}
+
+
 bool AbstractServer::listen(qint16 port, const QHostAddress &host)
 {
   return mSvr->listen(host, port);

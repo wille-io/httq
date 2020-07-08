@@ -25,7 +25,7 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/
   DESTINATION include
   FILES_MATCHING PATTERN "*.h")
 
-target_include_directories(httq PRIVATE include/httq/)
+target_include_directories(httq PRIVATE include/)
 
 include(GNUInstallDirs)
 install(TARGETS httq

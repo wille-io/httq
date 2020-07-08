@@ -5,6 +5,11 @@
 
 #include <QTcpSocket>
 #include <QUrl>
+#include <QUrlQuery>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonDocument>
 
 
 HttpRequest::HttpRequest(QTcpSocket *cli, QObject *parent)
@@ -76,6 +81,7 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
   }
 
   QUrl url;
+  HttpRequestData *reqData = data(parser);
 
 #define isUrlFieldSet(field) parserUrl.field_set & (1 << field)
 
@@ -104,7 +110,12 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
     url.setPath(QString::fromUtf8(at + parserUrl.field_data[UF_PATH].off, parserUrl.field_data[UF_PATH].len));
 
   if (isUrlFieldSet(UF_QUERY))
-    url.setQuery(QString::fromUtf8(at + parserUrl.field_data[UF_QUERY].off, parserUrl.field_data[UF_QUERY].len));
+  {
+    // Qt 5 doesn't provide a method to return a QUrlQuery, but a QString version only, so generate it one-time and save it
+    QUrlQuery q(QString::fromUtf8(at + parserUrl.field_data[UF_QUERY].off, parserUrl.field_data[UF_QUERY].len));
+    url.setQuery(q);
+    reqData->mQuery = q;
+  }
 
 //  if (isUrlFieldSet(UF_FRAGMENT))
 //    url.setFragment(QString::fromUtf8(at + parserUrl.field_data[UF_FRAGMENT].off, parserUrl.field_data[UF_FRAGMENT].len));
@@ -114,7 +125,7 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
 
 
   //qWarning() << "QUrl" << url;
-  data(parser)->mUrl = url;
+  reqData->mUrl = url;
 
 
   return 0;
@@ -205,7 +216,7 @@ qint64 HttpRequest::availableBytes() const
 }
 
 
-DataStream *HttpRequest::createDataStreamToClient(int status, const QString &contentType, QIODevice *from, qint64 bufferSize, qint64 fileSize)
+DataStream *HttpRequest::createDataStreamToClient(int status, const QString &contentType, QIODevice *from, qint64 fileSize, qint64 bufferSize)
 {
   writeStatusHeader(status);
   addHeader("Content-Type", contentType);
@@ -217,7 +228,7 @@ DataStream *HttpRequest::createDataStreamToClient(int status, const QString &con
 }
 
 
-DataStream *HttpRequest::createDataStreamFromClient(QIODevice *to, qint64 bufferSize, qint64 fileSize)
+DataStream *HttpRequest::createDataStreamFromClient(QIODevice *to, qint64 fileSize, qint64 bufferSize)
 {
   return new DataStream(mCli, to, mData.mBodyPartial, fileSize, bufferSize, this);
 }
@@ -227,6 +238,19 @@ DataStream *HttpRequest::createDataStreamFromClient(QIODevice *to, qint64 buffer
 //{
 //  return new DataStream(from, mCli, mBufferSize, mData.mBodyPartial, this);
 //}
+
+
+void HttpRequest::write(int status, const QJsonValue &jsonValue)
+{
+  QJsonDocument doc;
+
+  if (jsonValue.isArray())
+    doc = QJsonDocument(jsonValue.toArray());
+  else
+    doc = QJsonDocument(jsonValue.toObject());
+
+  write(status, doc.toJson(), QStringLiteral("application/json"));
+}
 
 
 void HttpRequest::write(int status, const QByteArray &data, const QString &contentType)
