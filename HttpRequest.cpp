@@ -143,7 +143,7 @@ int HttpRequest::on_header_field(http_parser *parser, const char *at, size_t len
 {
   //qWarning() << "on_header_field";
 
-  data(parser)->mCurrentHeaderField = QString::fromUtf8(at, length);
+  data(parser)->mCurrentHeaderField = std::move(QByteArray(at, length));
 
   return 0;
 }

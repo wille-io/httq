@@ -30,10 +30,12 @@ private:
   QByteArray mBodyPartial;
   QIODevice *mFrom;
   QIODevice *mTo;
-  qint64 mPos { 0 };
+  //qint64 mPos { 0 };
   qint64 mBufferSize;
   qint64 alreadyRead { 0 };
   qint64 mFileLength;
+  bool mToSupportsSignals { false };
+  bool mFromSupportsSignals { false };
 
 signals:
   void signalDone();

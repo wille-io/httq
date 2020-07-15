@@ -5,6 +5,7 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include <QDataStream>
+#include <QFileDevice>
 
 #include <QDebug>
 
@@ -33,23 +34,34 @@ DataStream::DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPar
   // TODO: timeout!
   mBuffer.reserve(bufferSize);
 
-  connect(mFrom, &QIODevice::readyRead,
-          this, [this]()
-  {
-    DLOG << "DataStream read";
 
-    mReadyRead = true;
-    QTimer::singleShot(1, this, [this]() { readNext(); } );
-  });
+  // from QFile manpage: "Unlike other QIODevice implementations, such as QTcpSocket, QFile does not emit the aboutToClose(), bytesWritten(), or readyRead() signals."
+  mFromSupportsSignals = (qobject_cast<QFileDevice *>(mFrom) == nullptr);
+  mToSupportsSignals = (qobject_cast<QFileDevice *>(mTo) == nullptr);
+  qWarning() << "signal support - from:" << mFromSupportsSignals << "- to:" << mToSupportsSignals;
 
-  connect(mTo, &QIODevice::bytesWritten,
-          this, [this]()
-  {
-    DLOG << "DataStream write";
 
-    mReadyWrite = true;
-    QTimer::singleShot(1, this, [this]() { readNext(); } );
-  });
+  if (mFromSupportsSignals)
+    connect(mFrom, &QIODevice::readyRead,
+            this, [this]()
+    {
+      //qWarning() << "DataStreamFromClient read";
+
+      mReadyRead = true;
+      QTimer::singleShot(1, this, [this]() { readNext(); } );
+    });
+
+
+  if (mToSupportsSignals)
+    connect(mTo, &QIODevice::bytesWritten,
+            this, [this]()
+    {
+      //qWarning() << "DataStreamFromClient write";
+
+      mReadyWrite = true;
+      QTimer::singleShot(1, this, [this]() { readNext(); } );
+    });
+
 
   QTimer::singleShot(1, this, [this]() { readNext(); } );
 }
@@ -63,17 +75,17 @@ DataStream::~DataStream()
 
 void DataStream::readNext()
 {
-  DLOG << "readNext" << mPos;
+  DLOG << "readNext" << mBuffer.size();
 
 
-  if (mPos > 0)
+  if (mBuffer.size() > 0)
   {
     DLOG << "ignoring read until buffer was written";
     return;
   }
 
 
-  if (!mReadyWrite)
+  if (mToSupportsSignals && !mReadyWrite)
   {
     DLOG << "won't read until write is ready!";
     return;
@@ -82,15 +94,9 @@ void DataStream::readNext()
 
   if (!mBodyPartial.isEmpty()) // don't read from device, but read from data that was already read when the connection was established
   {
-    mBuffer.insert(0, mBodyPartial); // TODO: std::move
-
-    mPos = mBodyPartial.size();
-    DLOG << "mPos is now" << mPos;
-    alreadyRead += mPos;
-    DLOG << "prebody size" << mPos;
-
+    mBuffer = std::move(mBodyPartial);
+    alreadyRead += mBuffer.size();
     mBodyPartial.clear();
-
 
     //mReadyWrite = true;
     DLOG << "queueing writeNext after prebody read";
@@ -106,14 +112,16 @@ void DataStream::readNext()
     return;
   }
 
-  mReadyRead = false;
-  mPos = mFrom->read(mBuffer.data(), mBufferSize);
+  if (mFromSupportsSignals)
+    mReadyRead = false;
+
+  mBuffer = mFrom->read(mBufferSize);
 //  qWarning() << "mPos is now" << mPos;
 //  qWarning() << "read" << mPos << "bytes";
 
-  alreadyRead += mPos;
+  alreadyRead += mBuffer.size();
 
-  if (mPos < 1)
+  if (mBuffer.size() < 1)
   {
     DLOG << "cannot read anything";
     deleteLater();
@@ -127,36 +135,47 @@ void DataStream::readNext()
 
 void DataStream::writeNext()
 {
-  DLOG << "writeNext" << mPos;
+  DLOG << "writeNext" << mBuffer.size();
 
-  if (mPos < 1)
+  if (mBuffer.size() < 1)
   {
     DLOG << "nothing to write";
     QTimer::singleShot(1, this, [this]() { readNext(); } );
     return;
   }
 
-  if (/*!mTo->isOpen() || !mTo->isWritable() ||*/ !mReadyWrite /* wait until bytesWritten signal calls writeNext */)
+  // TODO: check isOpen & isWritable maybe in c_tor?
+  if (!mTo->isOpen() || !mTo->isWritable())
+  {
+    WLOG << "file error: open?" << mTo->isOpen() << "- writable?" << mTo->isWritable();
+    emit signalDone();
+    deleteLater();
+    return;
+  }
+
+  if (mToSupportsSignals && !mReadyWrite /* wait until bytesWritten signal calls writeNext */)
   {
     WLOG << "!mReadyWrite";
     //readNext();
     return;
   }
 
-  mReadyWrite = false;
+  if (mToSupportsSignals)
+    mReadyWrite = false;
 
-  qint64 size = mTo->write(mBuffer.constData(), mPos);
-  DLOG << "wrote to buffer" << mPos << "bytes"; //QString::fromUtf8(mBuffer.constData(), mPos);
+  qint64 size = mTo->write(mBuffer);
+  DLOG << "wrote to buffer" << mBuffer.size() << "bytes"; //QString::fromUtf8(mBuffer.constData(), mPos);
 
-  if (size < mPos)
+  if (size < mBuffer.size())
   {
     WLOG << "cannot write all bytes";
+    emit signalDone();
     deleteLater();
     return;
   }
 
-  mPos = 0;
-  DLOG << "mPos is now" << mPos << "was set to 0 now!!";
+  mBuffer.clear();
+  DLOG << "mPos is now" << mBuffer.size() << "was set to 0 now!!";
 
   if (alreadyRead == mFileLength) // done
   {
@@ -169,6 +188,7 @@ void DataStream::writeNext()
   if (alreadyRead > mFileLength)
   {
     DLOG << "oops... we read too much!! data may be corrupt!! already read" << alreadyRead << "bytes, but content length is only" << mFileLength << "("<<alreadyRead<<"/"<<mFileLength<<")";
+    emit signalDone();
     deleteLater();
     return;
   }
@@ -176,6 +196,8 @@ void DataStream::writeNext()
 
 
   // give the buffer a chance to emit a bytesWritten signal before trying to read again
-  DLOG << "waiting for bytes written to be triggered...";
+  if (mToSupportsSignals)
+    DLOG << "waiting for bytes written to be triggered...";
+
   QTimer::singleShot(1, this, [this]() { writeNext(); } );
 }
