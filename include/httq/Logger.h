@@ -1,14 +1,15 @@
 #pragma once
 
-#include <httq/httq_export.h>
-
 #include <QScopedPointer>
 #include <QPointer>
 
 
 namespace httq
 {
-class HTTQ_EXPORT LoggerFactory : public QObject
+class Logger;
+
+
+class LoggerFactory : public QObject
 {
   Q_OBJECT
 
@@ -21,7 +22,7 @@ public:
 };
 
 
-class HTTQ_EXPORT Logger : public QObject
+class Logger : public QObject
 {
   Q_OBJECT
 public:

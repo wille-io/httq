@@ -1,13 +1,18 @@
-#ifndef ABSTRACTSERVER_H
-#define ABSTRACTSERVER_H
+#pragma once
 
 #include <QObject>
 #include <QHostAddress>
 
 
-class HttpRequest;
 class QTcpServer;
 class QWebSocketServer;
+
+
+namespace httq
+{
+class HttpRequest;
+class LoggerFactory;
+class Logger;
 
 
 class AbstractServer : public QObject
@@ -18,18 +23,16 @@ public:
 
   virtual bool newHttpConnection(HttpRequest *request) = 0;
   virtual QWebSocketServer *webSocketServer() const { return nullptr; }
-
+  virtual LoggerFactory *createLoggerFactory();
+  LoggerFactory *getLoggerFactory();
   bool listen(qint16 port, const QHostAddress &host = QHostAddress::Any);
+
+private slots:
+  void slotNewConnection();
 
 private:
   QTcpServer *mSvr;
-
-private slots:
-  void slotReadyRead();
-
-
-signals:
-
+  LoggerFactory *mLoggerFactory { nullptr };
+  Logger *mLogger;
 };
-
-#endif // ABSTRACTSERVER_H
+}

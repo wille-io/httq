@@ -1,6 +1,7 @@
 #include <httq/Logger.h>
 
 #include <QCoreApplication>
+#include <QDebug>
 
 
 namespace httq

@@ -1,5 +1,4 @@
-#ifndef HTTPREQUEST_H
-#define HTTPREQUEST_H
+#pragma once
 
 #include <http_parser.h>
 
@@ -13,7 +12,14 @@
 
 class QTcpSocket;
 class QIODevice;
+
+
+namespace httq
+{
+class AbstractServer;
+class Logger;
 class DataStream;
+class HttpRequest;
 
 
 struct HttpRequestData
@@ -25,6 +31,7 @@ struct HttpRequestData
   bool mDone { false };
   QByteArray mBodyPartial;
   QUrlQuery mQuery;
+  HttpRequest *mHttpRquest;
 };
 
 
@@ -33,17 +40,18 @@ class HttpRequest : public QObject
   Q_OBJECT
 
 private:
-  explicit HttpRequest(QTcpSocket *cli, QObject *parent = nullptr);
+  explicit HttpRequest(QTcpSocket *cli, AbstractServer *parent = nullptr);
 public:
   ~HttpRequest();
 
   qint64 availableBytes() const;
   http_method method() const { return (enum http_method)mParser.method; }
+  QString methodString() const { return QString::fromUtf8(http_method_str(method())); }
   const QUrl &url() const { return mData.mUrl; }
   const QUrlQuery &query() const { return mData.mQuery; }
   qint64 contentLength() const { return mContentLength; }
-  //QTcpSocket *socket() { return mCli; }
-  //QByteArray read(qint64 max);
+  Logger *logger() { return mLogger; }
+  QString toString() const;
 
   // response
   void addHeader(const QString &key, const QString &value);
@@ -74,6 +82,7 @@ private:
   static int on_chunk_complete(http_parser *parser);
 
   static HttpRequestData *data(http_parser *parser) { return static_cast<HttpRequestData *>(parser->data); }
+  static Logger *dataLogger(http_parser *parser) { return static_cast<HttpRequestData *>(parser->data)->mHttpRquest->logger(); }
 
 
   QTcpSocket *mCli;
@@ -84,6 +93,7 @@ private:
   qint64 mContentLength { 0 };
   qint64 alreadyRead { 0 };
   QMap<QString, QString> mHeaders;
+  Logger *mLogger;
 
 
 private slots:
@@ -95,5 +105,4 @@ signals:
   void signalReady();
 
 };
-
-#endif // HTTPREQUEST_H
+}

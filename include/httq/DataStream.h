@@ -1,19 +1,26 @@
-#ifndef DataStreamFromClient_H
-#define DataStreamFromClient_H
+#pragma once
+
+#include <httq/Logger.h>
 
 #include <QObject>
+#include <QScopedPointer>
 
 
 class QIODevice;
-class HttpRequest;
 
+
+namespace httq
+{
+class HttpRequest;
 
 class DataStream : public QObject
 {
   Q_OBJECT
 
 private:
-  explicit DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPartial, qint64 fileLength, size_t bufferSize, QObject *parent = nullptr);
+  explicit DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPartial,
+                      qint64 fileLength, size_t bufferSize, LoggerFactory *loggerFactory,
+                      QObject *parent = nullptr);
 
 public:
   ~DataStream();
@@ -30,16 +37,16 @@ private:
   QByteArray mBodyPartial;
   QIODevice *mFrom;
   QIODevice *mTo;
-  //qint64 mPos { 0 };
   qint64 mBufferSize;
   qint64 alreadyRead { 0 };
   qint64 mFileLength;
-  bool mToSupportsSignals { false };
   bool mFromSupportsSignals { false };
+  bool mToSupportsSignals { false };
+  QScopedPointer<Logger> mLogger;
 
 signals:
+  void signalError();
   void signalDone();
 
 };
-
-#endif // DataStreamFromClient_H
+}
