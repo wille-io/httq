@@ -13,10 +13,12 @@ set(src
   include/httq/AbstractServer.h
   include/httq/DataStream.h
   include/httq/HttpRequest.h
+  include/httq/Logger.h
 
   AbstractServer.cpp
   DataStream.cpp
   HttpRequest.cpp
+  Logger.cpp
 )
 
 add_library(httq SHARED ${src})

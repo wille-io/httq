@@ -1,7 +1,9 @@
+#include <httq/AbstractServer.h>
 #include <httq/HttpRequest.h>
 #include <httq/DataStream.h>
 
 #include <http_parser.h>
+#include <httq/Logger.h>
 
 #include <QTcpSocket>
 #include <QUrl>
@@ -12,16 +14,20 @@
 #include <QJsonDocument>
 
 
-HttpRequest::HttpRequest(QTcpSocket *cli, QObject *parent)
+namespace httq
+{
+HttpRequest::HttpRequest(QTcpSocket *cli, AbstractServer *parent)
   : QObject(parent)
   , mCli(cli)
+  , mLogger(parent->getLoggerFactory()->createLogger(this))
 {
-  //qWarning() << "HttpRequest c_tor";
+  mLogger->debug(QStringLiteral("HttpRequest c_tor"));
 
   mCli->setParent(this);
 
   // TODO: init on first read
   http_parser_init(&mParser, HTTP_REQUEST);
+  mData.mHttpRquest = this;
   mParser.data = static_cast<void *>(&mData);
 
   connect(cli, &QTcpSocket::readyRead,
@@ -49,42 +55,47 @@ HttpRequest::HttpRequest(QTcpSocket *cli, QObject *parent)
 
 HttpRequest::~HttpRequest()
 {
-  //qWarning() << "~HttpRequest";
+  mLogger->debug(QStringLiteral("~HttpRequest"));
 
   if (mCli == nullptr)
     return;
 
+  mLogger->debug(QStringLiteral("mCli flush & close"));
   mCli->flush();
   mCli->close();
 }
 
 
-int HttpRequest::on_message_begin(http_parser */*parser*/)
+QString HttpRequest::toString() const
 {
-  ////qWarning() << "on_message_begin";
+  return QStringLiteral("HttpRequest(url = '%1', method = %2)").arg(url().toString()).arg(methodString());
+}
+
+
+int HttpRequest::on_message_begin(http_parser *parser)
+{
+  dataLogger(parser)->debug(QStringLiteral("on_message_begin"));
   return 0;
 }
 
 
 int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
 {
-  ////qWarning() << "on_url";
+  dataLogger(parser)->debug(QStringLiteral("on_url '%1'").arg(QString::fromUtf8(at, length)));
 
-  QString urlString(QString::fromUtf8(at, length));
+  // QString urlString(QString::fromUtf8(at, length));
   //qWarning() << "urlString" << urlString;
 
   http_parser_url parserUrl;
   if (http_parser_parse_url(at, length, false, &parserUrl) != 0)
   {
-    //qWarning() << "could not determine url!" << QString::fromUtf8(at, length);
+    dataLogger(parser)->debug(QStringLiteral("could not determine url! %1").arg(QString::fromUtf8(at, length)));
     return 1;
   }
 
   QUrl url;
-  HttpRequestData *reqData = data(parser);
 
 #define isUrlFieldSet(field) parserUrl.field_set & (1 << field)
-
   if (isUrlFieldSet(UF_SCHEMA))
     url.setScheme(QString::fromUtf8(at + parserUrl.field_data[UF_SCHEMA].off, parserUrl.field_data[UF_SCHEMA].len));
 
@@ -99,7 +110,7 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
 
     if (!k)
     {
-      //qWarning() << "could not determine port!" << portString;
+      dataLogger(parser)->warning(QStringLiteral("could not determine port! %1").arg(portString));
       return 1;
     }
 
@@ -109,9 +120,11 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
   if (parserUrl.field_set & (1 << UF_PATH))
     url.setPath(QString::fromUtf8(at + parserUrl.field_data[UF_PATH].off, parserUrl.field_data[UF_PATH].len));
 
+  HttpRequestData *reqData = data(parser);
   if (isUrlFieldSet(UF_QUERY))
   {
     // Qt 5 doesn't provide a method to return a QUrlQuery, but a QString version only, so generate it one-time and save it
+    // TODO: I remember that there is indeed a way.
     QUrlQuery q(QString::fromUtf8(at + parserUrl.field_data[UF_QUERY].off, parserUrl.field_data[UF_QUERY].len));
     url.setQuery(q);
     reqData->mQuery = q;
@@ -122,9 +135,10 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
 
   if (isUrlFieldSet(UF_USERINFO))
     url.setUserInfo(QString::fromUtf8(at + parserUrl.field_data[UF_USERINFO].off, parserUrl.field_data[UF_USERINFO].len));
+#undef isUrlFieldSet
 
 
-  //qWarning() << "QUrl" << url;
+  dataLogger(parser)->debug(QStringLiteral("final url = %1").arg(url.toString()));
   reqData->mUrl = url;
 
 
@@ -132,18 +146,18 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
 }
 
 
-int HttpRequest::on_status(http_parser */*parser*/, const char */*at*/, size_t /*length*/)
+int HttpRequest::on_status(http_parser *parser, const char */*at*/, size_t /*length*/)
 {
-  //qWarning() << "on_status";// << QString::fromUtf8(at, length);
+  dataLogger(parser)->debug(QStringLiteral("on_status"));
   return 0;
 }
 
 
 int HttpRequest::on_header_field(http_parser *parser, const char *at, size_t length)
 {
-  //qWarning() << "on_header_field";
+  dataLogger(parser)->debug(QStringLiteral("on_header_field"));
 
-  data(parser)->mCurrentHeaderField = std::move(QByteArray(at, length));
+  data(parser)->mCurrentHeaderField = QString::fromUtf8(at, length);
 
   return 0;
 }
@@ -151,14 +165,14 @@ int HttpRequest::on_header_field(http_parser *parser, const char *at, size_t len
 
 int HttpRequest::on_header_value(http_parser *parser, const char *at, size_t length)
 {
-  //qWarning() << "on_header_value";
+  dataLogger(parser)->debug(QStringLiteral("on_header_value"));
 
   QString value(QString::fromUtf8(at, length));
   HttpRequestData *reqdata = data(parser);
 
   reqdata->mHeaders.insert(reqdata->mCurrentHeaderField, value);
 
-  //qWarning() << "added header" << reqdata->mCurrentHeaderField << "=" << value;
+  dataLogger(parser)->debug(QStringLiteral("added header: %1 = %2").arg(reqdata->mCurrentHeaderField).arg(value));
 
   reqdata->mCurrentHeaderField.clear(); // TODO: not really necessary
 
@@ -166,17 +180,17 @@ int HttpRequest::on_header_value(http_parser *parser, const char *at, size_t len
 }
 
 
-int HttpRequest::on_headers_complete(http_parser */*parser*/)
+int HttpRequest::on_headers_complete(http_parser *parser)
 {
-  //qWarning() << "on_headers_complete";
-return 0;
+  dataLogger(parser)->debug(QStringLiteral("on_headers_complete"));
+  return 0;
 }
 
 
 int HttpRequest::on_body(http_parser *parser, const char *at, size_t length)
 {
-  //qWarning() << "on_body";
-  data(parser)->mBodyPartial = QString::fromUtf8(at, length).toUtf8();
+  dataLogger(parser)->debug(QStringLiteral("on_body"));
+  data(parser)->mBodyPartial = std::move(QByteArray(at, length));
 
   //qWarning() << "BODY" << data(parser)->mBodyPartial;
 
@@ -188,7 +202,7 @@ int HttpRequest::on_body(http_parser *parser, const char *at, size_t length)
 
 int HttpRequest::on_message_complete(http_parser *parser)
 {
-  //qWarning() << "on_message_complete";
+  dataLogger(parser)->debug(QStringLiteral("on_message_complete"));
 
   data(parser)->mDone = true;
 
@@ -196,17 +210,17 @@ int HttpRequest::on_message_complete(http_parser *parser)
 }
 
 
-int HttpRequest::on_chunk_header(http_parser */*parser*/)
+int HttpRequest::on_chunk_header(http_parser *parser)
 {
-  qWarning() << "on_chunk_header";
-return 0;
+  dataLogger(parser)->debug(QStringLiteral("on_chunk_header"));
+  return 0;
 }
 
 
-int HttpRequest::on_chunk_complete(http_parser */*parser*/)
+int HttpRequest::on_chunk_complete(http_parser *parser)
 {
-  qWarning() << "on_chunk_complete";
-return 0;
+  dataLogger(parser)->debug(QStringLiteral("on_chunk_complete"));
+  return 0;
 }
 
 
@@ -218,19 +232,21 @@ qint64 HttpRequest::availableBytes() const
 
 DataStream *HttpRequest::createDataStreamToClient(int status, const QString &contentType, QIODevice *from, qint64 fileSize, qint64 bufferSize)
 {
+  mLogger->debug(QStringLiteral("createDataStreamToClient"));
+
   writeStatusHeader(status);
-  addHeader("Content-Type", contentType);
-  addHeader("Content-Length", QString::number(fileSize));
+  addHeader(QStringLiteral("Content-Type"), contentType);
+  addHeader(QStringLiteral("Content-Length"), QString::number(fileSize));
   writeHeaders();
   mCli->write("\r\n");
 
-  return new DataStream(from, mCli, {}, fileSize, bufferSize, this);
+  return new DataStream(from, mCli, {}, fileSize, bufferSize, mLogger->getLoggerFactory(), this);
 }
 
 
 DataStream *HttpRequest::createDataStreamFromClient(QIODevice *to, qint64 fileSize, qint64 bufferSize)
 {
-  return new DataStream(mCli, to, mData.mBodyPartial, fileSize, bufferSize, this);
+  return new DataStream(mCli, to, mData.mBodyPartial, fileSize, bufferSize, mLogger->getLoggerFactory(), this);
 }
 
 
@@ -255,10 +271,11 @@ void HttpRequest::write(int status, const QJsonValue &jsonValue)
 
 void HttpRequest::write(int status, const QByteArray &data, const QString &contentType)
 {
+  mLogger->debug(QStringLiteral("write to client: status = %1, data (size) = %2, contentType = %3").arg(status).arg(data.size()).arg(contentType));
   writeStatusHeader(status);
 
-  addHeader("Content-Type", contentType);
-  addHeader("Content-Length", QString::number(data.size()));
+  addHeader(QStringLiteral("Content-Type"), contentType);
+  addHeader(QStringLiteral("Content-Length"), QString::number(data.size()));
 
   writeHeaders();
   mCli->write("\r\n");
@@ -269,7 +286,8 @@ void HttpRequest::write(int status, const QByteArray &data, const QString &conte
 
 void HttpRequest::writeStatusHeader(int status)
 {
-  QString header(QString("HTTP/1.1 %1 %2\r\n").arg(status).arg("OK" /* TODO: ! */));
+  QString header(QStringLiteral("HTTP/1.1 %1 %2\r\n").arg(status).arg(QStringLiteral("OK") /* TODO: ! */));
+  mLogger->debug(QStringLiteral("write to client: header = %1").arg(header));
   mCli->write(header.toUtf8());
 }
 
@@ -288,9 +306,10 @@ void HttpRequest::writeHeaders()
   while (it.hasNext())
   {
     it.next();
-    headers += QString("%1: %2\r\n").arg(it.key(), it.value());
+    headers += QStringLiteral("%1: %2\r\n").arg(it.key(), it.value());
   }
 
+  mLogger->debug(QStringLiteral("write to client: headers = %1").arg(headers));
   mCli->write(headers.toUtf8());
 }
 
@@ -298,15 +317,20 @@ void HttpRequest::writeHeaders()
 void HttpRequest::slotReadyRead()
 {
   // read until the whole header is done
+  mLogger->debug(QStringLiteral("slotReadyRead"));
 
   if (mDone)
+  {
+    mLogger->debug(QStringLiteral("already marked as done"));
     return;
+  }
 
   mCli->startTransaction(); // revertable, in the case that it's not a plain http request, but a ws request, which reads must be undone to be completely read again by the web socket server
-  //qWarning() << "ready read";
+  //qWarning() << "ready read"));
 
   while (mCli->bytesAvailable() && !mData.mDone)
   {
+    mLogger->debug(QStringLiteral("bytes available"));
     const QByteArray data(mCli->read(10000));//HTTP_MAX_HEADER_SIZE - 1024));
     //const QByteArray data(mCli->readAll()); // TODO: TEMP!!!
 
@@ -316,7 +340,7 @@ void HttpRequest::slotReadyRead()
 
     if (size < static_cast<size_t>(dataSize))
     {
-      qWarning() << "http parser error:" << http_errno_name(HTTP_PARSER_ERRNO(&mParser));
+      mLogger->error(QStringLiteral("http parser error: %1").arg(QString::fromUtf8(http_errno_name(HTTP_PARSER_ERRNO(&mParser)))));
       mCli->commitTransaction(); // not a ws connection at this point, it is legitimate to read the data
       deleteLater();
       return;
@@ -326,16 +350,19 @@ void HttpRequest::slotReadyRead()
 
   if (mData.mDone)
   {
-    //qWarning() << "done!!!";
+    mLogger->debug(QStringLiteral("now marked as done"));
     mDone = true;
 
 
-    // find Upgrade
-    auto it = mData.mHeaders.constFind("Upgrade");
+    mLogger->debug(QStringLiteral("method = %1").arg(methodString()));
 
-    if (it != mData.mHeaders.constEnd() && (*it).toLower() == "websocket") // ws!
+
+    // find Upgrade
+    auto it = mData.mHeaders.constFind(QStringLiteral("Upgrade"));
+
+    if (it != mData.mHeaders.constEnd() && (*it).toLower() == QStringLiteral("websocket")) // ws!
     {
-      //qWarning() << "Upgrade:" << (*it);
+      mLogger->debug(QStringLiteral("Upgrade: ").arg(*it));
       disconnect(mCli, &QTcpSocket::readyRead, nullptr, nullptr); // don't receive ready read events!
 
       mCli->rollbackTransaction();
@@ -350,7 +377,7 @@ void HttpRequest::slotReadyRead()
 
 
     // find Content-Length
-    it = mData.mHeaders.constFind("Content-Length");
+    it = mData.mHeaders.constFind(QStringLiteral("Content-Length"));
 
     if (it != mData.mHeaders.constEnd())
     {
@@ -359,7 +386,7 @@ void HttpRequest::slotReadyRead()
 
       if (!k)
       {
-        qWarning() << "invalid content length" << *it;
+        mLogger->error(QStringLiteral("invalid content length: ").arg(*it));
         deleteLater();
         return;
       }
@@ -368,12 +395,14 @@ void HttpRequest::slotReadyRead()
 
     alreadyRead = mData.mBodyPartial.size();
 
-    //qWarning() << alreadyRead << "/" << contentLength;
+    mLogger->debug(QStringLiteral("already read %1 / %2 bytes").arg(alreadyRead).arg(contentLength()));
 
     mCli->commitTransaction(); // not a ws connection at this point, it is legitimate to read the data
     emit signalReady();
     return;
   }
 
+  mLogger->debug(QStringLiteral("commit transaction"));
   mCli->commitTransaction(); // not a ws connection at this point, it is legitimate to read the data
+}
 }
