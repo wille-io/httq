@@ -1,3 +1,5 @@
+![httq logo](https://github.com/wille-io/httq/blob/master/httq.png?raw=true)
+
 # httq
 
 Proof of Concept. Do not use in production - yet - as API is subject to change at any time without warning.
