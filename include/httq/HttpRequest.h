@@ -48,6 +48,7 @@ public:
   http_method method() const { return (enum http_method)mParser.method; }
   QString methodString() const { return QString::fromUtf8(http_method_str(method())); }
   const QUrl &url() const { return mData.mUrl; }
+  const QMap<QString, QString> &requestHeaders() { return mData.mHeaders; }
   const QUrlQuery &query() const { return mData.mQuery; }
   qint64 contentLength() const { return mContentLength; }
   Logger *logger() { return mLogger; }
