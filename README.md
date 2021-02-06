@@ -7,3 +7,6 @@ Proof of Concept. Do not use in production - yet - as API is subject to change a
 HTTP Server for Qt. Doesn't clog the memory like The Other HTTP Server™.
 Based on NodeJS's wonderful http-parser.
 Can download a message's body in chunks, instead of reading it all into memory that allows an easy DoS, like The Other HTTP Server™.
+
+# TODO
+- [ ] Return status text by status number - don't always return 'OK' as status text
