@@ -2,6 +2,7 @@
 
 #include <http_parser.h>
 
+#include <QJsonDocument>
 #include <QObject>
 #include <QByteArray>
 #include <QUrl>
@@ -57,7 +58,7 @@ public:
   // response
   void addHeader(const QString &key, const QString &value);
   void write(int status, const QByteArray &data, const QString &contentType);
-  void write(int status, const QJsonValue &jsonValue);
+  void write(int status, const QJsonValue &jsonValue, QJsonDocument::JsonFormat jsonFormat = QJsonDocument::JsonFormat::Compact);
   DataStream *createDataStreamFromClient(QIODevice *to, qint64 fileSize, qint64 bufferSize = 1024 * 1024);
   DataStream *createDataStreamToClient(int status, const QString &contentType, QIODevice *from, qint64 fileSize, qint64 bufferSize = 1024 * 1024);
 

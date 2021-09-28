@@ -42,7 +42,7 @@ Logger::Logger(LoggerFactory *loggerFactory, QObject *parent)
 
 void Logger::debug(const QString &message)
 {
-  //qtLogger(QStringLiteral("DEBUG"), qDebug()) << message;
+  //qtLogger(QStringLiteral("DEBUG"), qWarning()) << message; //qDebug()) << message;
 }
 
 

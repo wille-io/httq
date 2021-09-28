@@ -256,7 +256,7 @@ DataStream *HttpRequest::createDataStreamFromClient(QIODevice *to, qint64 fileSi
 //}
 
 
-void HttpRequest::write(int status, const QJsonValue &jsonValue)
+void HttpRequest::write(int status, const QJsonValue &jsonValue, QJsonDocument::JsonFormat jsonFormat)
 {
   QJsonDocument doc;
 
@@ -265,7 +265,7 @@ void HttpRequest::write(int status, const QJsonValue &jsonValue)
   else
     doc = QJsonDocument(jsonValue.toObject());
 
-  write(status, doc.toJson(), QStringLiteral("application/json"));
+  write(status, doc.toJson(jsonFormat), QStringLiteral("application/json"));
 }
 
 
@@ -350,7 +350,7 @@ void HttpRequest::slotReadyRead()
 
   if (mData.mDone)
   {
-    mLogger->debug(QStringLiteral("now marked as done"));
+    mLogger->debug(QStringLiteral("now marked as done %1").arg(quint64(this)));
     mDone = true;
 
 

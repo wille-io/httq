@@ -11,12 +11,18 @@ find_package(Qt5 COMPONENTS Core Network WebSockets REQUIRED)
 
 set(src
   include/httq/AbstractServer.h
+  include/httq/AbstractHandler.h
+  include/httq/BodyReader.h
   include/httq/DataStream.h
+  include/httq/HandlerServer.h
   include/httq/HttpRequest.h
   include/httq/Logger.h
 
   AbstractServer.cpp
+  AbstractHandler.cpp
+  BodyReader.cpp
   DataStream.cpp
+  HandlerServer.cpp
   HttpRequest.cpp
   Logger.cpp
 )
