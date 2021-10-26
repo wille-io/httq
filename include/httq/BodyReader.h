@@ -12,18 +12,18 @@ class BodyReader : public QObject
   Q_OBJECT
 
 public:
-  BodyReader(httq::HttpRequest *request)
+  BodyReader(httq::HttpRequest &request)
     : QObject()
     , mBuf(new QBuffer(&mBa))
   {
     mBuf->open(QIODevice::WriteOnly);
 
-    mDs = request->createDataStreamFromClient(mBuf, request->contentLength());
+    mDs = request.createDataStreamFromClient(mBuf, request.contentLength());
 
     connect(mDs, &QObject::destroyed,
     this, [this]()
     {
-      emit signalDone(mBa);
+      emit signalDone();
     });
 
     // connect(mDs, &DataStream::signalDone,
@@ -49,10 +49,10 @@ public:
     delete mBuf;
   }
 
-  const QByteArray &body() { return mBa; }
+  QByteArray &body() { return mBa; }
 
 signals:
-  void signalDone(const QByteArray &body);
+  void signalDone();
   void signalError();
 
 private:

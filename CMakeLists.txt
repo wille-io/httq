@@ -4,7 +4,7 @@ project(httq LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 COMPONENTS Core Network WebSockets REQUIRED)
@@ -12,6 +12,7 @@ find_package(Qt5 COMPONENTS Core Network WebSockets REQUIRED)
 set(src
   include/httq/AbstractServer.h
   include/httq/AbstractHandler.h
+  include/httq/AbstractBodyHandler.h
   include/httq/BodyReader.h
   include/httq/DataStream.h
   include/httq/HandlerServer.h
@@ -20,6 +21,7 @@ set(src
 
   AbstractServer.cpp
   AbstractHandler.cpp
+  AbstractBodyHandler.cpp
   BodyReader.cpp
   DataStream.cpp
   HandlerServer.cpp
