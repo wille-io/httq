@@ -60,14 +60,14 @@ public:
 
   bool addHandler(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory)
   {
-    mHandlers += HandlerDefinition(method, path, handlerFactory);
+    mHandlers.push_back(HandlerDefinition(method, path, handlerFactory));
     // TODO: don't add if already exists, etc.
     return true;
   }
 
   bool addWebSocketHandler(const QString &path, const std::function<AbstractWebSocketHandler *(void)> &handlerFactory)
   {
-    mWebSocketHandlers += WebSocketHandlerDefinition(path, handlerFactory);
+    mWebSocketHandlers.push_back(WebSocketHandlerDefinition(path, handlerFactory));
     // TODO: don't add if already exists, etc.
     return true;
   }
@@ -79,8 +79,8 @@ protected:
   QString mBase;
 
 private:
-  QVector<HandlerDefinition> mHandlers; // TODO: matrix (method, path, etc.)
-  QVector<WebSocketHandlerDefinition> mWebSocketHandlers; // TODO: matrix (method, path, etc.)
+  std::vector<HandlerDefinition> mHandlers; // TODO: matrix (method, path, etc.)
+  std::vector<WebSocketHandlerDefinition> mWebSocketHandlers; // TODO: matrix (method, path, etc.)
   QWebSocketServer *mWsSvr;
 };
 }

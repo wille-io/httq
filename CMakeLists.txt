@@ -31,6 +31,10 @@ set(src
 
 add_library(httq SHARED ${src})
 
+# testing! - for brew installed packages under macOS
+include_directories("/opt/homebrew/include/")
+link_directories("/opt/homebrew/lib/")
+
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/
   DESTINATION include
   FILES_MATCHING PATTERN "*.h")
