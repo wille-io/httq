@@ -32,12 +32,12 @@ HttpRequest::HttpRequest(QTcpSocket *cli, AbstractServer *parent)
 
   connect(cli, &QTcpSocket::readyRead,
           this, &HttpRequest::slotReadyRead);
-  connect(cli, &QTcpSocket::disconnected,
-          this, &HttpRequest::deleteLater);
+//  connect(cli, &QTcpSocket::disconnected,
+//          this, &HttpRequest::deleteLater);   the developer is responsible to always delete a HttpRequest after he is done working with it
 
 
 
-  // TODO: client timeout
+  // TODO: client timeout (or developer's responsibility?)
 
 
   mParserSettings.on_message_begin = &HttpRequest::on_message_begin;
@@ -68,7 +68,7 @@ HttpRequest::~HttpRequest()
 
 QString HttpRequest::toString() const
 {
-  return QStringLiteral("HttpRequest(url = '%1', method = %2)").arg(url().toString()).arg(methodString());
+  return QStringLiteral("HttpRequest(url = '%1', method = %2)").arg(url().toString(), methodString());
 }
 
 
@@ -172,7 +172,7 @@ int HttpRequest::on_header_value(http_parser *parser, const char *at, size_t len
 
   reqdata->mHeaders.insert(reqdata->mCurrentHeaderField, value);
 
-  dataLogger(parser)->debug(QStringLiteral("added header: %1 = %2").arg(reqdata->mCurrentHeaderField).arg(value));
+  dataLogger(parser)->debug(QStringLiteral("added header: %1 = %2").arg(reqdata->mCurrentHeaderField, value));
 
   reqdata->mCurrentHeaderField.clear(); // TODO: not really necessary
 

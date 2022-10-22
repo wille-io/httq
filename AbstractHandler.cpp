@@ -5,10 +5,37 @@
 #include <QJsonObject>
 #include <QByteArray>
 #include <QString>
+#include <QWebSocket>
 
 
 namespace httq
 {
+/// AbstractWebSocketHandler
+AbstractWebSocketHandler::AbstractWebSocketHandler(QWebSocket *ws)
+  : QObject(nullptr) // TODO: parent ?
+{
+  mWs = ws;
+
+  connect(ws, &QWebSocket::textMessageReceived,
+          this, &AbstractWebSocketHandler::_handleMessage);
+  connect(ws, &QWebSocket::disconnected,
+          ws, &QWebSocket::deleteLater);
+  connect(ws, &QWebSocket::destroyed,
+          this, &AbstractWebSocketHandler::deleteLater);
+
+//    QTimer *t = new QTimer();
+//    connect(t, &QTimer::timeout,
+//            this, [this]()
+//    {
+//      qWarning() << "I'm still alive!" << this->metaObject()->className();
+//    });
+//    t->setInterval(10000);
+//    t->start();
+}
+
+
+
+/// Abstract(Http)Handler
 void AbstractHandler::answer(int status)
 {
   answer(status, QJsonObject());

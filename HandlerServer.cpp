@@ -71,24 +71,40 @@ void HandlerServer::missingHttpHandlerHandler(HttpRequest *request)
 }
 
 
+bool HandlerServer::newWebSocketConnection(QWebSocket *ws)
+{
+  qWarning() << "newWebSocketConnection";
+
+  if (!handleWs(ws, ws->requestUrl().path(), mBase))
+  {
+    qWarning() << "no handler found for" << ws->requestUrl().path();
+    missingWsHandlerHandler(ws);
+    ws->deleteLater();
+    return false;
+  }
+
+  qWarning() << "ws handler found for" << ws->requestUrl().path();
+
+  return true;
+}
+
+
 void HandlerServer::missingWsHandlerHandler(QWebSocket *ws)
 {
-  ws->sendTextMessage("{ error: \"not handler found\" }");
+  ws->sendTextMessage("{ error: \"no websocket handler found\" }");
 }
 
 
 bool HandlerServer::handleWs(QWebSocket *ws, const QString &path, const QString &base)
 {
-  QUrl url(ws->requestUrl());
-  QString _path(url.path().remove(base));
-  auto it = std::find_if(mWebSocketHandlers.begin(), mWebSocketHandlers.end(), [&_path](WebSocketHandlerDefinition &handler)
+  auto it = std::find_if(mWebSocketHandlers.begin(), mWebSocketHandlers.end(), [ws, &path](const WebSocketHandlerDefinition &handler)
   {
-    QRegExp rx(handler.mPath);
-    rx.setPatternSyntax(QRegExp::Wildcard);
-    
-    //qWarning()/*LOG*/ << "handle: handler path:" << handler.mPath << "- request url:" << path << "- matches?" << ret << "- exem" << exem << "- request" << request->toString();
+    bool pathMatch = QRegularExpression(QRegularExpression::wildcardToRegularExpression(handler.mPath)).match(path).hasMatch();
+    bool ret = pathMatch;
 
-    return rx.exactMatch(_path);
+    qWarning()/*LOG*/ << "handleWs: handler path:" << handler.mPath << "- request url:" << path << "- path match?" << pathMatch;
+
+    return ret;
   });
 
   bool ret = (it != mWebSocketHandlers.end());
@@ -96,36 +112,49 @@ bool HandlerServer::handleWs(QWebSocket *ws, const QString &path, const QString 
   if (!ret)
     return false;
 
-  AbstractWebSocketHandler *handler = (*it).mHandlerFactory();
+  AbstractWebSocketHandler *handler = (*it).mHandlerFactory(ws);
   handler->setLogger(getLoggerFactory()->createLogger(handler));
+
+#warning ?????
+  // ws->setParent(handler); ?????
 
   connect(handler, &QObject::destroyed,
           ws, &QObject::deleteLater); // delete request if handler was deleted (end-developer controlled environment)
 
-  handler->setWs(ws);
-  ws->setParent(handler);
+
+  return true;
+
+
+
+
+
+
+/*  QUrl url(ws->requestUrl());
+  QString _path(url.path().remove(base));
+
+  connect(handler, &QObject::destroyed,
+          ws, &QObject::deleteLater); // delete request if handler was deleted (end-developer controlled environment)
+
   
   connect(ws, &QWebSocket::textMessageReceived,
           handler, &AbstractWebSocketHandler::_handleMessage);
   
   return true;
+*/
 }
 
 
 bool HandlerServer::handle(HttpRequest *request, const QString &base)
 {
   const QString path(request->url().path().remove(base));
-  auto it = std::find_if(mHandlers.begin(), mHandlers.end(), [request, &path](HandlerDefinition &handler)
+  auto it = std::find_if(mHandlers.begin(), mHandlers.end(), [request, &path](const HandlerDefinition &handler)
   {
-    QRegExp rx(handler.mPath);
-    rx.setPatternSyntax(QRegExp::Wildcard);
+    bool pathMatch = QRegularExpression(QRegularExpression::wildcardToRegularExpression(handler.mPath)).match(path).hasMatch();
+    bool methodMatch = (handler.mMethod.toUpper() == request->methodString());
 
-    bool exem = rx.exactMatch(path);
+    bool ret = (methodMatch && pathMatch);
 
-    bool ret = ((handler.mMethod.toUpper() == request->methodString())
-               && exem);
-
-    //qWarning()/*LOG*/ << "handle: handler path:" << handler.mPath << "- request url:" << path << "- matches?" << ret << "- exem" << exem << "- request" << request->toString();
+    //qWarning()/*LOG*/ << "handle: handler path:" << handler.mPath << "- request url:" << path << "- path match?" << pathMatch << "- method match?" << methodMatch << "- request" << request->toString();
 
     return ret;
   });

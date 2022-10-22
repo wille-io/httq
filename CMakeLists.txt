@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 COMPONENTS Core Network WebSockets REQUIRED)
+find_package(Qt6 COMPONENTS Core Network WebSockets REQUIRED)
 
 set(src
   include/httq/AbstractServer.h
@@ -34,6 +34,9 @@ add_library(httq SHARED ${src})
 # testing! - for brew installed packages under macOS
 include_directories("/opt/homebrew/include/")
 link_directories("/opt/homebrew/lib/")
+#include_directories("/usr/local/include/")
+#link_directories("/usr/local/lib/")
+
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/
   DESTINATION include
@@ -46,4 +49,4 @@ install(TARGETS httq
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-target_link_libraries(httq http_parser Qt5::Core Qt5::Network Qt5::WebSockets)
+target_link_libraries(httq http_parser Qt6::Core Qt6::Network Qt6::WebSockets)

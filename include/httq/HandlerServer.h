@@ -35,13 +35,13 @@ class AbstractWebSocketHandler;
 class WebSocketHandlerDefinition
 {
 public:
-  WebSocketHandlerDefinition(const QString &path, const std::function<AbstractWebSocketHandler *(void)> &handlerFactory)
+  WebSocketHandlerDefinition(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory)
     : mPath(path)
     , mHandlerFactory(handlerFactory)
   {}
 
   QString mPath;
-  std::function<AbstractWebSocketHandler *(void)> mHandlerFactory;
+  std::function<AbstractWebSocketHandler *(QWebSocket *)> mHandlerFactory;
 };
 
 
@@ -53,7 +53,8 @@ public:
   virtual ~HandlerServer() = default;
 
   virtual bool newHttpConnection(HttpRequest *request) override;
-  virtual QWebSocketServer *webSocketServer() const override { return mWsSvr; }
+  virtual bool newWebSocketConnection(QWebSocket *ws) override;
+  //virtual QWebSocketServer *webSocketServer() const override { return mWsSvr; }
 
   virtual void missingHttpHandlerHandler(HttpRequest *request);
   virtual void missingWsHandlerHandler(QWebSocket *ws);
@@ -65,7 +66,7 @@ public:
     return true;
   }
 
-  bool addWebSocketHandler(const QString &path, const std::function<AbstractWebSocketHandler *(void)> &handlerFactory)
+  bool addWebSocketHandler(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory)
   {
     mWebSocketHandlers.push_back(WebSocketHandlerDefinition(path, handlerFactory));
     // TODO: don't add if already exists, etc.

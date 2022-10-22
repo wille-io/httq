@@ -12,9 +12,16 @@ namespace httq
 AbstractServer::AbstractServer(QObject *parent)
   : QObject(parent)
   , mSvr(new QTcpServer(this))
+  , mWsSvr(new QWebSocketServer("", QWebSocketServer::SslMode::NonSecureMode, this)) // TODO: server name!
   , mLoggerFactory(nullptr)
   , mLogger(nullptr)//mLoggerFactory->createLogger(this))
-{}
+{
+  connect(mWsSvr, &QWebSocketServer::newConnection,
+          this, [this]()
+  {
+    newWebSocketConnection(mWsSvr->nextPendingConnection());
+  });
+}
 
 
 LoggerFactory *AbstractServer::createLoggerFactory()
@@ -52,17 +59,7 @@ void AbstractServer::slotNewConnection()
     {
       mLogger->debug(QStringLiteral("signalUpgrade"));
 
-      QWebSocketServer *wsSvr = webSocketServer();
-
-      if (wsSvr == nullptr)
-      {
-        mLogger->debug(QStringLiteral("no websocket server available for websocket upgrade"));
-        sock->close();
-        sock->deleteLater();
-        return;
-      }
-
-      wsSvr->handleConnection(sock);
+      mWsSvr->handleConnection(sock);
       emit sock->readyRead(); // rollbackTransaction doesn't re-emit the readyRead signal
     });
 
@@ -70,7 +67,7 @@ void AbstractServer::slotNewConnection()
             this, [this, req]()
     {
       mLogger->debug(QStringLiteral("signalReady"));
-      newHttpConnection(req); // TODO: who owns HttpRequest now?
+      newHttpConnection(req); // TODO: who owns HttpRequest now?sss
     });
   }
 }

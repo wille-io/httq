@@ -17,18 +17,20 @@ class AbstractWebSocketHandler : public QObject
 {
   Q_OBJECT
 public:
-  AbstractWebSocketHandler()
-    : QObject(nullptr)
-  {
-  //    QTimer *t = new QTimer();
-  //    connect(t, &QTimer::timeout,
-  //            this, [this]()
-  //    {
-  //      qWarning() << "I'm still alive!" << this->metaObject()->className();
-  //    });
-  //    t->setInterval(10000);
-  //    t->start();
-  }
+  AbstractWebSocketHandler(QWebSocket *ws);
+//    : QObject(nullptr)
+//  {
+//     connect(ws, &QWebSocket::textMessage)
+
+//  //    QTimer *t = new QTimer();
+//  //    connect(t, &QTimer::timeout,
+//  //            this, [this]()
+//  //    {
+//  //      qWarning() << "I'm still alive!" << this->metaObject()->className();
+//  //    });
+//  //    t->setInterval(10000);
+//  //    t->start();
+//  }
   
   QWebSocket *webSocket() { return mWs; }
   virtual void handleMessage(const QString &msg) = 0;
@@ -36,8 +38,8 @@ public:
 private slots:
   void _handleMessage(const QString &msg)
   {
-    emit handleMessage(msg);
-  };
+    handleMessage(msg);
+  }
 
 protected:
 //  void answer(int status); // empty json
@@ -52,7 +54,11 @@ private:
 
   void setLogger(Logger *logger) { mLogger = logger; }
   void setRequest(HttpRequest *request) { mRequest = request; }
-  void setWs(QWebSocket *ws) { mWs = ws; }
+  //void setWs(QWebSocket *ws);
+//  {
+//    mWs = ws;
+//    connect(ws, &QWebSocket)
+//  }
   
   Logger *mLogger = nullptr;
   HttpRequest *mRequest = nullptr;
