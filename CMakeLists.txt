@@ -7,7 +7,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 COMPONENTS Core Network WebSockets REQUIRED)
+find_package(Qt NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
+find_package(Qt${Qt_VERSION_MAJOR} COMPONENTS Core Network WebSockets REQUIRED)
 
 set(src
   include/httq/AbstractServer.h
@@ -49,4 +50,4 @@ install(TARGETS httq
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-target_link_libraries(httq http_parser Qt6::Core Qt6::Network Qt6::WebSockets)
+target_link_libraries(httq http_parser Qt${Qt_VERSION_MAJOR}::Core Qt${Qt_VERSION_MAJOR}::Network Qt${Qt_VERSION_MAJOR}::WebSockets)
