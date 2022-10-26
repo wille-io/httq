@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QWebSocketServer>
 #include <QWebSocket>
+#include <QRegularExpression>
 
 
 namespace httq
