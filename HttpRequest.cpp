@@ -93,7 +93,8 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
     return 1;
   }
 
-  QUrl url;
+  HttpRequestData *reqData = data(parser);
+  QUrl url(reqData->mUrl);
 
 #define isUrlFieldSet(field) parserUrl.field_set & (1 << field)
   if (isUrlFieldSet(UF_SCHEMA))
@@ -120,7 +121,6 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
   if (parserUrl.field_set & (1 << UF_PATH))
     url.setPath(QString::fromUtf8(at + parserUrl.field_data[UF_PATH].off, parserUrl.field_data[UF_PATH].len));
 
-  HttpRequestData *reqData = data(parser);
   if (isUrlFieldSet(UF_QUERY))
   {
     // Qt 5 doesn't provide a method to return a QUrlQuery, but a QString version only, so generate it one-time and save it
@@ -135,12 +135,12 @@ int HttpRequest::on_url(http_parser *parser, const char *at, size_t length)
 
   if (isUrlFieldSet(UF_USERINFO))
     url.setUserInfo(QString::fromUtf8(at + parserUrl.field_data[UF_USERINFO].off, parserUrl.field_data[UF_USERINFO].len));
+
 #undef isUrlFieldSet
 
 
   dataLogger(parser)->debug(QStringLiteral("final url = %1").arg(url.toString()));
   reqData->mUrl = url;
-
 
   return 0;
 }
@@ -171,6 +171,24 @@ int HttpRequest::on_header_value(http_parser *parser, const char *at, size_t len
   HttpRequestData *reqdata = data(parser);
 
   reqdata->mHeaders.insert(reqdata->mCurrentHeaderField, value);
+
+  if (reqdata->mCurrentHeaderField.toLower() == "host")
+  {
+    QStringList hostSplit(value.split(":")); // host header may also contain port (if non-standard port for scheme)
+    reqdata->mUrl.setHost(hostSplit.takeFirst());
+
+    if (hostSplit.count() == 1 /* 1 left - because takeFirst - means there is a port */)
+    {
+      bool k;
+      int port = hostSplit.takeFirst().toInt(&k);
+      if (!k)
+      {
+        dataLogger(parser)->error(QStringLiteral("header contains invalid port - host header was: '%1'").arg(value));
+        return -1;
+      }
+      reqdata->mUrl.setPort(port);
+    }
+  }
 
   dataLogger(parser)->debug(QStringLiteral("added header: %1 = %2").arg(reqdata->mCurrentHeaderField, value));
 
@@ -353,6 +371,12 @@ void HttpRequest::slotReadyRead()
     mLogger->debug(QStringLiteral("now marked as done %1").arg(quint64(this)));
     mDone = true;
 
+    if (!mData.mUrl.isValid())
+    {
+      mLogger->error(QStringLiteral("request url is invalid!"));
+      deleteLater();
+      return;
+    }
 
     mLogger->debug(QStringLiteral("method = %1").arg(methodString()));
 
