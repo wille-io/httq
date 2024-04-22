@@ -70,7 +70,7 @@ class AbstractHandler : public QObject
 {
   Q_OBJECT
 public:
-#warning // TODO: parent!!
+  // TODO: parent!!
   AbstractHandler()
     : QObject(nullptr)
   {
@@ -101,6 +101,7 @@ private:
   void setLogger(Logger *logger) { mLogger = logger; }
   void setRequest(HttpRequest *request) { mRequest = request; }
   
+  bool mAlreadyAnswered = false;
   Logger *mLogger = nullptr;
   HttpRequest *mRequest = nullptr;
 };}
