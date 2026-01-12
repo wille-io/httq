@@ -96,6 +96,8 @@ private:
   qint64 alreadyRead { 0 };
   QMap<QString, QString> mHeaders;
   Logger *mLogger;
+  qint64 mResponsePending { 0 };
+  bool mWriteMonitorConnected { false };
 
 
 private slots:
@@ -105,6 +107,7 @@ private slots:
 signals:
   void signalUpgrade(QTcpSocket *sock);
   void signalReady();
+  void signalWriteComplete();
 
 };
 }

@@ -42,6 +42,7 @@ private:
   qint64 mFileLength;
   bool mFromSupportsSignals { false };
   bool mToSupportsSignals { false };
+  bool mFinishPending { false };
   QScopedPointer<Logger> mLogger;
 
 signals:

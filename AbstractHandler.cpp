@@ -45,24 +45,30 @@ void AbstractHandler::answer(int status)
 void AbstractHandler::answer(int status, const QJsonObject &json)
 {
   assert(!mAlreadyAnswered);
+  mAlreadyAnswered = true;
+  connect(mRequest, &HttpRequest::signalWriteComplete,
+          this, &QObject::deleteLater);
   mRequest->write(status, json);
-  deleteLater();
 }
 
 
 void AbstractHandler::answer(int status, const QJsonArray &json)
 {
   assert(!mAlreadyAnswered);
+  mAlreadyAnswered = true;
+  connect(mRequest, &HttpRequest::signalWriteComplete,
+          this, &QObject::deleteLater);
   mRequest->write(status, json);
-  deleteLater();
 }
 
 
 void AbstractHandler::answer(int status, const QByteArray &content, const QString &contentType) // main
 {
   assert(!mAlreadyAnswered);
+  mAlreadyAnswered = true;
+  connect(mRequest, &HttpRequest::signalWriteComplete,
+          this, &QObject::deleteLater);
   mRequest->write(status, content, contentType);
-  deleteLater();
 }
 
 

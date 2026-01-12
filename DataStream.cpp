@@ -4,6 +4,7 @@
 #include <QIODevice>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QMetaObject>
 #include <QDataStream>
 #include <QTemporaryFile>
 #include <QFile>
@@ -41,8 +42,10 @@ DataStream::DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPar
   if (mFileLength == 0) // basically, we are done here
   {
     mLogger->warning(QStringLiteral("file size = 0 - done"));
-    //QMetaObject::invokeMethod() ...
-    QTimer::singleShot(1, this, [this]() { emit signalDone(); deleteLater(); } ); // needs to be queued, so the developer has enough time to connect this signal to a slot first
+    QMetaObject::invokeMethod(this, [this]() {
+      emit signalDone();
+      deleteLater();
+    });
     return;
   }
 
@@ -67,7 +70,7 @@ DataStream::DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPar
       //mLogger->debug(QStringLiteral(">> DataStream read"));
 
       mReadyRead = true;
-      QTimer::singleShot(1, this, [this]() { readNext(); } );
+      QMetaObject::invokeMethod(this, [this]() { readNext(); }, Qt::QueuedConnection);
     });
   }
 
@@ -80,12 +83,24 @@ DataStream::DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPar
       //mLogger->debug(QStringLiteral(">> DataStream write"));
 
       mReadyWrite = true;
-      QTimer::singleShot(1, this, [this]() { readNext(); } );
+      QMetaObject::invokeMethod(this, [this]() {
+        if (mFinishPending && mBuffer.isEmpty() && mTo->bytesToWrite() == 0)
+        {
+          emit signalDone();
+          deleteLater();
+          return;
+        }
+
+        if (mBuffer.size() > 0)
+          writeNext();
+        else
+          readNext();
+      }, Qt::QueuedConnection);
     });
   }
 
 
-  QTimer::singleShot(1, this, [this]() { readNext(); } );
+  QMetaObject::invokeMethod(this, [this]() { readNext(); }, Qt::QueuedConnection);
 }
 
 
@@ -138,7 +153,7 @@ void DataStream::readNext()
 
     //mReadyWrite = true;
     //mLogger->debug(QStringLiteral("read: queueing writeNext after prebody read"));
-    QTimer::singleShot(1, this, [this]() { /*qWarning() << "triggering writeNext and hoping that writeReady is true!!"));*/ writeNext(); } );
+    QMetaObject::invokeMethod(this, [this]() { writeNext(); }, Qt::QueuedConnection);
     return;
   }
 
@@ -174,7 +189,7 @@ void DataStream::readNext()
   }
 
   //mLogger->debug(QStringLiteral("read: queueing writeNext"));
-  QTimer::singleShot(1, this, [this]() { writeNext(); } );
+  QMetaObject::invokeMethod(this, [this]() { writeNext(); }, Qt::QueuedConnection);
 }
 
 
@@ -185,7 +200,7 @@ void DataStream::writeNext()
   if (mBuffer.size() < 1)
   {
     //mLogger->debug(QStringLiteral("write: nothing to write"));
-    QTimer::singleShot(1, this, [this]() { readNext(); } );
+    QMetaObject::invokeMethod(this, [this]() { readNext(); }, Qt::QueuedConnection);
     return;
   }
 
@@ -224,9 +239,9 @@ void DataStream::writeNext()
 
   if (size < mBuffer.size())
   {
-    mLogger->warning(QStringLiteral("write: cannot write all bytes: %1 / %2 bytes").arg(mBuffer.size()).arg(size));
-    // TODO: signalDone??
-    deleteLater();
+    mLogger->warning(QStringLiteral("write: partial write %1 / %2 bytes").arg(size).arg(mBuffer.size()));
+    mBuffer = mBuffer.mid(static_cast<int>(size));
+    QMetaObject::invokeMethod(this, [this]() { writeNext(); }, Qt::QueuedConnection);
     return;
   }
 
@@ -236,6 +251,12 @@ void DataStream::writeNext()
   if (alreadyRead == mFileLength) // done
   {
     //mLogger->debug(QStringLiteral("write: DONE!"));
+    if (mToSupportsSignals && mTo->bytesToWrite() > 0)
+    {
+      mFinishPending = true;
+      return;
+    }
+
     emit signalDone();
     deleteLater();
     return;
@@ -258,6 +279,6 @@ void DataStream::writeNext()
   }
 
   //mLogger->debug(QStringLiteral("write: queueing writeNext again"));
-  QTimer::singleShot(1, this, [this]() { writeNext(); } );
+  QMetaObject::invokeMethod(this, [this]() { writeNext(); }, Qt::QueuedConnection);
 }
 }

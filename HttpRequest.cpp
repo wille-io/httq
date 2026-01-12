@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QMetaObject>
 
 
 namespace httq
@@ -298,7 +299,32 @@ void HttpRequest::write(int status, const QByteArray &data, const QString &conte
   writeHeaders();
   mCli->write("\r\n");
 
-  mCli->write(data);
+  mResponsePending = data.size();
+  const qint64 queued = mCli->write(data);
+  if (queued < 0)
+  {
+    mLogger->error(QStringLiteral("write to client failed before queueing response"));
+    QMetaObject::invokeMethod(this, [this]() { emit signalWriteComplete(); });
+    return;
+  }
+
+  if (mCli->bytesToWrite() == 0 && mResponsePending <= 0)
+  {
+    QMetaObject::invokeMethod(this, [this]() { emit signalWriteComplete(); });
+    return;
+  }
+
+  if (!mWriteMonitorConnected)
+  {
+    mWriteMonitorConnected = true;
+    connect(mCli, &QTcpSocket::bytesWritten, this, [this](qint64 bytes)
+    {
+      if (mResponsePending > 0)
+        mResponsePending -= bytes;
+      if (mResponsePending <= 0 && mCli->bytesToWrite() == 0)
+        QMetaObject::invokeMethod(this, [this]() { emit signalWriteComplete(); }, Qt::QueuedConnection);
+    });
+  }
 }
 
 
