@@ -7,6 +7,11 @@
 namespace httq
 {
 // LoggerFactory
+LoggerFactory::LoggerFactory(QObject *parent)
+  : QObject(parent)
+{}
+
+
 Logger *LoggerFactory::createLogger(QObject *parent)
 {
   return new Logger(this, parent);
@@ -55,6 +60,13 @@ void Logger::warning(const QString &message)
 void Logger::error(const QString &message)
 {
   qtLogger(QStringLiteral("ERROR"), qCritical()) << message;
+}
+
+
+LoggerFactory *Logger::getLoggerFactory() const
+{
+  Q_ASSERT(mLoggerFactory);
+  return mLoggerFactory;
 }
 
 

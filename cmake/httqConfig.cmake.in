@@ -1,0 +1,8 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+set(_httq_qt_major "@Qt_VERSION_MAJOR@")
+find_dependency(Qt${_httq_qt_major} COMPONENTS Core Network WebSockets)
+
+include("${CMAKE_CURRENT_LIST_DIR}/httqTargets.cmake")

@@ -15,9 +15,7 @@ class LoggerFactory : public QObject
   Q_OBJECT
 
 public:
-  LoggerFactory(QObject *parent)
-    : QObject(parent)
-  {}
+  LoggerFactory(QObject *parent);
 
   virtual Logger *createLogger(QObject *parent);
 };
@@ -33,11 +31,7 @@ public:
   virtual void warning(const QString &message);
   virtual void error(const QString &message);
 
-  virtual LoggerFactory *getLoggerFactory() const
-  {
-    Q_ASSERT(mLoggerFactory);
-    return mLoggerFactory;
-  }
+  virtual LoggerFactory *getLoggerFactory() const;
 
 protected:
   QPointer<LoggerFactory> mLoggerFactory;

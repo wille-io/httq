@@ -13,6 +13,35 @@
 
 namespace httq
 {
+HandlerDefinition::HandlerDefinition(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory)
+  : mMethod(method)
+  , mPath(path)
+  , mHandlerFactory(handlerFactory)
+{}
+
+
+WebSocketHandlerDefinition::WebSocketHandlerDefinition(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory)
+  : mPath(path)
+  , mHandlerFactory(handlerFactory)
+{}
+
+
+bool HandlerServer::addHandler(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory)
+{
+  mHandlers.push_back(HandlerDefinition(method, path, handlerFactory));
+  // TODO: don't add if already exists, etc.
+  return true;
+}
+
+
+bool HandlerServer::addWebSocketHandler(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory)
+{
+  mWebSocketHandlers.push_back(WebSocketHandlerDefinition(path, handlerFactory));
+  // TODO: don't add if already exists, etc.
+  return true;
+}
+
+
 HandlerServer::HandlerServer(QObject *parent)
   : AbstractServer(parent)
   , mWsSvr(new QWebSocketServer("httq", QWebSocketServer::SslMode::NonSecureMode, this))
@@ -22,18 +51,26 @@ HandlerServer::HandlerServer(QObject *parent)
   {
     QWebSocket *ws = mWsSvr->nextPendingConnection();
     //ws->setParent(this);
-    
+
     connect(ws, &QWebSocket::disconnected,
             ws, &QObject::deleteLater);
+
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    connect(ws, &QWebSocket::errorOccurred,
+            ws, &QObject::deleteLater);
+#else
     connect(ws, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
             ws, &QObject::deleteLater);
-    
-    qWarning() << "ws client url" << ws->requestUrl().toString();
-    
+#endif
+
+
+    //qWarning() << "ws client url" << ws->requestUrl().toString();
+
     QUrl url(ws->requestUrl());
-    qWarning() << "path" << url.path();
-    
-    
+    //qWarning() << "path" << url.path();
+
+
     if (!handleWs(ws, url.path(), mBase))
     {
       //qWarning() << "no handler found for" << request->toString();
@@ -41,7 +78,7 @@ HandlerServer::HandlerServer(QObject *parent)
       ws->deleteLater();
       return;
     }
-  
+
     //LOG << "handler found for" << request->toString();
   });
 }
@@ -116,32 +153,10 @@ bool HandlerServer::handleWs(QWebSocket *ws, const QString &path, const QString 
   AbstractWebSocketHandler *handler = (*it).mHandlerFactory(ws);
   handler->setLogger(getLoggerFactory()->createLogger(handler));
 
-#warning ?????
-  // ws->setParent(handler); ?????
-
   connect(handler, &QObject::destroyed,
           ws, &QObject::deleteLater); // delete request if handler was deleted (end-developer controlled environment)
 
-
   return true;
-
-
-
-
-
-
-/*  QUrl url(ws->requestUrl());
-  QString _path(url.path().remove(base));
-
-  connect(handler, &QObject::destroyed,
-          ws, &QObject::deleteLater); // delete request if handler was deleted (end-developer controlled environment)
-
-  
-  connect(ws, &QWebSocket::textMessageReceived,
-          handler, &AbstractWebSocketHandler::_handleMessage);
-  
-  return true;
-*/
 }
 
 

@@ -12,44 +12,10 @@ class BodyReader : public QObject
   Q_OBJECT
 
 public:
-  BodyReader(httq::HttpRequest &request)
-    : QObject()
-    , mBuf(new QBuffer(&mBa))
-  {
-    mBuf->open(QIODevice::WriteOnly);
+  BodyReader(httq::HttpRequest &request);
+  ~BodyReader();
 
-    mDs = request.createDataStreamFromClient(mBuf, request.contentLength());
-
-    connect(mDs, &QObject::destroyed,
-    this, [this]()
-    {
-      emit signalDone();
-    });
-
-    // connect(mDs, &DataStream::signalDone,
-    //         this, [this]()
-    // {
-    //   LOG << "ds done";
-    // });
-
-    // connect(mDs, &DataStream::signalError,
-    // this, [this]()
-    // {
-    //   LOG << "ds error";
-    // });
-
-    connect(mDs, &httq::DataStream::signalError,
-            this, &BodyReader::signalError);
-  }
-
-  ~BodyReader()
-  {
-    //LOG << "def";
-    //delete mDs;
-    delete mBuf;
-  }
-
-  QByteArray &body() { return mBa; }
+  QByteArray &body();
 
 signals:
   void signalDone();

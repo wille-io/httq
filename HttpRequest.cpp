@@ -67,9 +67,63 @@ HttpRequest::~HttpRequest()
 }
 
 
+http_method HttpRequest::method() const
+{
+  return (enum http_method)mParser.method;
+}
+
+
+QString HttpRequest::methodString() const
+{
+  return QString::fromUtf8(http_method_str(method()));
+}
+
+
+const QUrl &HttpRequest::url() const
+{
+  return mData.mUrl;
+}
+
+
+const QMap<QString, QString> &HttpRequest::requestHeaders() const
+{
+  return mData.mHeaders;
+}
+
+
+const QUrlQuery &HttpRequest::query() const
+{
+  return mData.mQuery;
+}
+
+
+qint64 HttpRequest::contentLength() const
+{
+  return mContentLength;
+}
+
+
+Logger *HttpRequest::logger()
+{
+  return mLogger;
+}
+
+
 QString HttpRequest::toString() const
 {
   return QStringLiteral("HttpRequest(url = '%1', method = %2)").arg(url().toString(), methodString());
+}
+
+
+HttpRequestData *HttpRequest::data(http_parser *parser)
+{
+  return static_cast<HttpRequestData *>(parser->data);
+}
+
+
+Logger *HttpRequest::dataLogger(http_parser *parser)
+{
+  return static_cast<HttpRequestData *>(parser->data)->mHttpRquest->logger();
 }
 
 
@@ -330,7 +384,9 @@ void HttpRequest::write(int status, const QByteArray &data, const QString &conte
 
 void HttpRequest::writeStatusHeader(int status)
 {
-  QString header(QStringLiteral("HTTP/1.1 %1 %2\r\n").arg(status).arg(QStringLiteral("OK") /* TODO: ! */));
+  const char *reason = http_status_str(static_cast<http_status>(status));
+  const QString reasonPhrase = reason && reason[0] != '\0' ? QString::fromLatin1(reason) : QStringLiteral("Unknown");
+  QString header(QStringLiteral("HTTP/1.1 %1 %2\r\n").arg(status).arg(reasonPhrase));
   mLogger->debug(QStringLiteral("write to client: header = %1").arg(header));
   mCli->write(header.toUtf8());
 }

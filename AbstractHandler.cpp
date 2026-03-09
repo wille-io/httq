@@ -34,8 +34,60 @@ AbstractWebSocketHandler::AbstractWebSocketHandler(QWebSocket *ws)
 }
 
 
+QWebSocket *AbstractWebSocketHandler::webSocket()
+{
+  return mWs;
+}
+
+
+void AbstractWebSocketHandler::_handleMessage(const QString &msg)
+{
+  handleMessage(msg);
+}
+
+
+Logger *AbstractWebSocketHandler::logger()
+{
+  return mLogger;
+}
+
+
+void AbstractWebSocketHandler::setLogger(Logger *logger)
+{
+  mLogger = logger;
+}
+
+
+void AbstractWebSocketHandler::setRequest(HttpRequest *request)
+{
+  mRequest = request;
+}
+
+
 
 /// Abstract(Http)Handler
+AbstractHandler::AbstractHandler()
+  : QObject(nullptr)
+{
+#if 0
+   QTimer *t = new QTimer();
+   connect(t, &QTimer::timeout,
+           this, [this]()
+   {
+     qWarning() << "I'm still alive!" << this->metaObject()->className();
+   });
+   t->setInterval(10000);
+   t->start();
+#endif
+}
+
+
+HttpRequest &AbstractHandler::request() const
+{
+  return *mRequest;
+}
+
+
 void AbstractHandler::answer(int status)
 {
   answer(status, QJsonObject());
@@ -75,6 +127,24 @@ void AbstractHandler::answer(int status, const QByteArray &content, const QStrin
 void AbstractHandler::answer(int status, const QString &msg)
 {
   answer(status, msg.toUtf8(), "text/plain");
+}
+
+
+Logger *AbstractHandler::logger()
+{
+  return mLogger;
+}
+
+
+void AbstractHandler::setLogger(Logger *logger)
+{
+  mLogger = logger;
+}
+
+
+void AbstractHandler::setRequest(HttpRequest *request)
+{
+  mRequest = request;
 }
 
 }

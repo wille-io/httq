@@ -17,11 +17,7 @@ class AbstractHandler;
 class HandlerDefinition
 {
 public:
-  HandlerDefinition(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory)
-    : mMethod(method)
-    , mPath(path)
-    , mHandlerFactory(handlerFactory)
-  {}
+  HandlerDefinition(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory);
 
   QString mMethod;
   QString mPath;
@@ -35,10 +31,7 @@ class AbstractWebSocketHandler;
 class WebSocketHandlerDefinition
 {
 public:
-  WebSocketHandlerDefinition(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory)
-    : mPath(path)
-    , mHandlerFactory(handlerFactory)
-  {}
+  WebSocketHandlerDefinition(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory);
 
   QString mPath;
   std::function<AbstractWebSocketHandler *(QWebSocket *)> mHandlerFactory;
@@ -59,19 +52,8 @@ public:
   virtual void missingHttpHandlerHandler(HttpRequest *request);
   virtual void missingWsHandlerHandler(QWebSocket *ws);
 
-  bool addHandler(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory)
-  {
-    mHandlers.push_back(HandlerDefinition(method, path, handlerFactory));
-    // TODO: don't add if already exists, etc.
-    return true;
-  }
-
-  bool addWebSocketHandler(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory)
-  {
-    mWebSocketHandlers.push_back(WebSocketHandlerDefinition(path, handlerFactory));
-    // TODO: don't add if already exists, etc.
-    return true;
-  }
+  bool addHandler(const QString &method, const QString &path, const std::function<AbstractHandler *(void)> &handlerFactory);
+  bool addWebSocketHandler(const QString &path, const std::function<AbstractWebSocketHandler *(QWebSocket *)> &handlerFactory);
 
   bool handleWs(QWebSocket *ws, const QString &path, const QString &base);
   bool handle(HttpRequest *request, const QString &base);

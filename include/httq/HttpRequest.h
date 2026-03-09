@@ -46,13 +46,13 @@ public:
   ~HttpRequest();
 
   qint64 availableBytes() const;
-  http_method method() const { return (enum http_method)mParser.method; }
-  QString methodString() const { return QString::fromUtf8(http_method_str(method())); }
-  const QUrl &url() const { return mData.mUrl; }
-  const QMap<QString, QString> &requestHeaders() const { return mData.mHeaders; }
-  const QUrlQuery &query() const { return mData.mQuery; }
-  qint64 contentLength() const { return mContentLength; }
-  Logger *logger() { return mLogger; }
+  http_method method() const;
+  QString methodString() const;
+  const QUrl &url() const;
+  const QMap<QString, QString> &requestHeaders() const;
+  const QUrlQuery &query() const;
+  qint64 contentLength() const;
+  Logger *logger();
   QString toString() const;
 
   // response
@@ -83,8 +83,8 @@ private:
   static int on_chunk_header(http_parser *parser);
   static int on_chunk_complete(http_parser *parser);
 
-  static HttpRequestData *data(http_parser *parser) { return static_cast<HttpRequestData *>(parser->data); }
-  static Logger *dataLogger(http_parser *parser) { return static_cast<HttpRequestData *>(parser->data)->mHttpRquest->logger(); }
+  static HttpRequestData *data(http_parser *parser);
+  static Logger *dataLogger(http_parser *parser);
 
 
   QTcpSocket *mCli;

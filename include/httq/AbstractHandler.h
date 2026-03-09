@@ -32,14 +32,11 @@ public:
 //  //    t->start();
 //  }
   
-  QWebSocket *webSocket() { return mWs; }
+  QWebSocket *webSocket();
   virtual void handleMessage(const QString &msg) = 0;
   
 private slots:
-  void _handleMessage(const QString &msg)
-  {
-    handleMessage(msg);
-  }
+  void _handleMessage(const QString &msg);
 
 protected:
 //  void answer(int status); // empty json
@@ -47,13 +44,13 @@ protected:
 //  void answer(int status, const QJsonObject &json);
 //  void answer(int status, const QJsonArray &json);
 //  void answer(int status, const QString &msg);
-  Logger *logger() { return mLogger; }
+  Logger *logger();
   
 private:
   friend class httq::HandlerServer;
 
-  void setLogger(Logger *logger) { mLogger = logger; }
-  void setRequest(HttpRequest *request) { mRequest = request; }
+  void setLogger(Logger *logger);
+  void setRequest(HttpRequest *request);
   //void setWs(QWebSocket *ws);
 //  {
 //    mWs = ws;
@@ -71,20 +68,9 @@ class AbstractHandler : public QObject
   Q_OBJECT
 public:
   // TODO: parent!!
-  AbstractHandler()
-    : QObject(nullptr)
-  {
-//    QTimer *t = new QTimer();
-//    connect(t, &QTimer::timeout,
-//            this, [this]()
-//    {
-//      qWarning() << "I'm still alive!" << this->metaObject()->className();
-//    });
-//    t->setInterval(10000);
-//    t->start();
-  }
+  AbstractHandler();
 
-  HttpRequest &request() const { return *mRequest; }
+  HttpRequest &request() const;
   virtual void handle() = 0;
 
 protected:
@@ -93,13 +79,13 @@ protected:
   void answer(int status, const QJsonObject &json);
   void answer(int status, const QJsonArray &json);
   void answer(int status, const QString &msg);
-  Logger *logger() { return mLogger; }
+  Logger *logger();
   
 private:
   friend class httq::HandlerServer;
 
-  void setLogger(Logger *logger) { mLogger = logger; }
-  void setRequest(HttpRequest *request) { mRequest = request; }
+  void setLogger(Logger *logger);
+  void setRequest(HttpRequest *request);
   
   bool mAlreadyAnswered = false;
   Logger *mLogger = nullptr;
