@@ -41,7 +41,7 @@ DataStream::DataStream(QIODevice *from, QIODevice *to, const QByteArray &bodyPar
 
   if (mFileLength == 0) // basically, we are done here
   {
-    mLogger->warning(QStringLiteral("file size = 0 - done"));
+    //mLogger->warning(QStringLiteral("file size = 0 - done"));
     QMetaObject::invokeMethod(this, [this]() {
       emit signalDone();
       deleteLater();
